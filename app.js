@@ -4,7 +4,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const startRecordElement = document.querySelector('#startRecording')
     const stopRecordElement = document.querySelector('#stopRecording')
     const video = document.querySelector('#video')
-    const logElement = document.querySelector('#log');
+    // const logElement = document.querySelector('#log');
 
     // const dumpOptionsInfo = () => {
 
@@ -67,10 +67,10 @@ window.addEventListener('DOMContentLoaded', () => {
         mediaRecorder.onstop = () => {
             if (confirm('Would you like to save this recording?')){
                 saveFile(recordedChunks)
-            } else {
-                elementsInitialState()
-            }
-
+            } 
+             
+            elementsInitialState()
+            
             recordedChunks = []
         }
 
@@ -98,6 +98,8 @@ window.addEventListener('DOMContentLoaded', () => {
             video.srcObject = capturedStream;
 
             // dumpOptionsInfo()
+
+            recordingInProgressState()
             
             return capturedStream
 
@@ -123,8 +125,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Event Listeners
     startRecordElement.addEventListener('click', async (e) => {
+
+
+        if (!navigator.mediaDevices) {
+            return alert('Your browser does not support this feature 😔, please use a broswer on a PC or upgrade your browser 🙂')  
+         }
+
        let stream = await startCapture()
-       recordingInProgressState()
        createRecorder(stream)
     })
 
