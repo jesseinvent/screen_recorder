@@ -4,6 +4,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const startRecordElement = document.querySelector('#startRecording')
     const stopRecordElement = document.querySelector('#stopRecording')
     const video = document.querySelector('#video')
+    const audioSupport = document.querySelector('#audioSupport')
+    let audioStream = null
+    let videoStream = null
+
     // const logElement = document.querySelector('#log');
 
     // const dumpOptionsInfo = () => {
@@ -24,7 +28,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function recordingInProgressState () {
-        stopRecordElement.style.display = 'inline'
+       stopRecordElement.style.display = 'inline'
        startRecordElement.classList.replace('startBtn', 'recording')
 
     }
@@ -32,15 +36,15 @@ window.addEventListener('DOMContentLoaded', () => {
     const saveFile = (recordedChunks = []) => {
 
         const blob = new Blob(recordedChunks, {
-            type: 'video/mp4'
+            type: 'video/webm',
         })
 
         let filename = window.prompt('Please enter file name')
 
         // Create anchor element to link and download file
         anchorElement = document.createElement('a')
-        anchorElement.href = URL.createObjectURL(blob) // Recorded mp4 file
-        anchorElement.download = `${filename}.mp4`
+        anchorElement.href = URL.createObjectURL(blob) // Recorded stream file
+        anchorElement.download = `${filename}.webm`
 
         document.body.appendChild(anchorElement)
         anchorElement.click()
@@ -52,11 +56,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
     }
 
-    const createRecorder = (stream) => {
+    const createRecorder = (streams) => {
          
         let recordedChunks = []
+        let combinedStream
 
-        const mediaRecorder = new MediaRecorder(stream)
+        if (audioStream) {
+             combinedStream = new MediaStream([...videoStream.getTracks(), ...audioStream.getTracks()])
+        } else {
+            combinedStream = new MediaStream([...videoStream.getTracks()])
+        }
+
+        const mediaRecorder = new MediaRecorder(combinedStream, {
+            mimeType: "video/webm",
+        })
 
         mediaRecorder.ondataavailable = (e) => {
             if (e.data.size > 0) {
@@ -68,7 +81,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (confirm('Would you like to save this recording?')){
                 saveFile(recordedChunks)
             } 
-             
+            
             elementsInitialState()
             
             recordedChunks = []
@@ -84,24 +97,25 @@ window.addEventListener('DOMContentLoaded', () => {
 
         try {
 
-            let capturedStream = await navigator.mediaDevices.getDisplayMedia({
-                // video: {
-                //     cursor: "always"
-                // },
+            videoStream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
-                audio: true
-                // audio: {
-                //     echoCancellation: true
-                // }
             })
 
-            video.srcObject = capturedStream;
+            if (audioSupport.checked === true) {
+                audioStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true
+                    }
+                })
+            }
+
+            video.srcObject = videoStream;
 
             // dumpOptionsInfo()
 
             recordingInProgressState()
             
-            return capturedStream
+            return true
 
         } catch (error) {
             console.error(error);
@@ -113,11 +127,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
         let tracks = video.srcObject.getTracks()
 
-        console.log(tracks)
+        tracks.forEach( track => track.stop())
+        videoStream.getTracks().forEach(track => track.stop())
 
-        tracks.forEach( track => {
-            track.stop()
-        })
+        if(audioStream) audioStream.getTracks().forEach(track => track.stop())
 
         video.srcObject = null
     }
@@ -126,13 +139,12 @@ window.addEventListener('DOMContentLoaded', () => {
     // Event Listeners
     startRecordElement.addEventListener('click', async (e) => {
 
-
         if (!navigator.mediaDevices) {
             return alert('Your browser does not support this feature 😔, please use a broswer on a PC or upgrade your browser 🙂')  
-         }
+        }
 
-       let stream = await startCapture()
-       createRecorder(stream)
+       await startCapture()
+       createRecorder()
     })
 
     stopRecordElement.addEventListener('click', (e) => {
